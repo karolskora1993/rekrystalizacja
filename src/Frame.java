@@ -251,6 +251,7 @@ public class Frame extends JFrame {
             }
             else
             {
+                mesh.clearRec();
                 System.out.println("Uruchomiono proces rekrystalizacji");
                 mesh.startRecrystalization();
                 ThreadRec t=new ThreadRec(mesh, component, Frame.this);
@@ -260,4 +261,3 @@ public class Frame extends JFrame {
         }
     }
 }
-
