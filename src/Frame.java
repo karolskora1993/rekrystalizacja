@@ -41,7 +41,7 @@ public class Frame extends JFrame {
         if(mesh.isRecStarted())
             recName="STOP";
         else
-            recName="START";
+            recName="rekrystalizuj";
 
         buttonRecrystalize.setText(recName);
 

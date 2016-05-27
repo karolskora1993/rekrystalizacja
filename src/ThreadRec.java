@@ -16,8 +16,7 @@ public class ThreadRec extends java.lang.Thread{
         this.frame=frame;
     }
     public void run(){
-
-        while(!mesh.isRecStarted() && !mesh.isRecrystalized()){
+        while(mesh.isRecStarted() && !mesh.isRecrystalized()){
             mesh.nextRoundRec();
             component.repaint();
             try {

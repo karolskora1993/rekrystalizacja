@@ -36,7 +36,7 @@ public class Mesh {
     private boolean period = false;
     private boolean started = false;
     private Method method = Method.MOORE;
-    private int nextId = 1;
+    private int nextId = 0;
 
     private boolean recStarted=false;
 
@@ -59,6 +59,7 @@ public class Mesh {
     }
 
     public boolean isRecStarted() {
+        System.out.println("recStarted="+recStarted);
         return recStarted;
     }
 
@@ -72,7 +73,20 @@ public class Mesh {
                 this.tab[i][j] = 0;
                 this.bordersTab[i][j] = 0;
                 this.recTab[i][j]=0;
+                this.roTab[i][j]=0;
+            }
+        }
 
+        nextId = 1;
+        System.out.println("Wyczysc");
+    }
+
+    public void clearRec() {
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y; j++) {
+                this.bordersTab[i][j] = 0;
+                this.recTab[i][j]=0;
+                this.roTab[i][j]=0;
             }
         }
 
@@ -104,7 +118,6 @@ public class Mesh {
     public void setAlive(int x, int y) {
         if (this.tab[x][y] == 0) {
             this.tab[x][y] = getNextId();
-            nextId++;
         } else
             this.tab[x][y] = 0;
 
@@ -574,8 +587,7 @@ public class Mesh {
 
 
     public int getNextId() {
-        nextId++;
-
+        nextId=nextId+1;
         return nextId;
     }
 
@@ -607,42 +619,40 @@ public class Mesh {
     public void nextRoundRec(){
         t++;
 
-        System.out.println("nextRoundRec");
         double ro=calculateRo(t);
 
-        for(int i=0; i<200;i++){
+        for(int i=0; i<10;i++) {
 
-            Random rand=new Random();
+            Random rand = new Random();
 
-            int x=rand.nextInt(400);
-            int y=rand.nextInt(400);
+            int x = rand.nextInt(400);
+            int y = rand.nextInt(400);
 
             double roLocal;
 
-            if(bordersTab[x][y]==1){
-                double a=rand.nextDouble();
-                a+=1.2;
+            if (bordersTab[x][y] == 1) {
+                double a = rand.nextDouble();
+                a += 1.2;
 
-                if(a>1.8)
-                    a=1.8;
+                if (a > 1.8)
+                    a = 1.8;
 
-                roLocal=a*(ro-roTab[x][y]);
+                roLocal = a * (ro - roTab[x][y]);
+
+                System.out.println("RoLocal: " +roLocal);
+
+            } else {
+                double a = rand.nextDouble();
+
+                if (a > 0.3)
+                    a = 0.3;
+
+                roLocal = a * (ro - roTab[x][y]);
 
             }
-            else{
-                double a=rand.nextDouble();
 
-                if(a>0.3)
-                    a=0.3;
-
-                roLocal=a*(ro-roTab[x][y]);
-                
-
-            }
-
-            roTab[x][y]+=roLocal;
-
-            System.out.println("Ro rozlozowane");
+            roTab[x][y] += roLocal;
+        }
 
 
         int[][] nextStep = new int[x][y];
@@ -652,47 +662,63 @@ public class Mesh {
                 nextStep[i][j] = tab[i][j];
         }
 
+        int[][] nextStepRec = new int[x][y];
+
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y; j++)
+                nextStepRec[i][j] = recTab[i][j];
+        }
 
         for(int i=0; i<x;i++){
             for(int j=0; j<y; j++) {
 
-
                 if (recTab[i][j] == 0) {
-                    int[][] neighboursBorders = generateTempBorderTab(i, j);
 
-                    int[][] neighboursIds = generateTempTab(i, j);
+                    if (roTab[i][j] >= roCrit && bordersTab[i][j]==1) {
+                        nextStepRec[i][j] = 1;
+                        roTab[i][j] = 0;
+                        nextStep[i][j] = getNextId();
+                    } else {
+                        int[][] neighboursRec = generateTempRecTab(i, j);
 
-                    Map<Integer, Integer> neighbours = new HashMap<>();
+                        int[][] neighboursIds = generateTempTab(i, j);
 
-                    for (int k = 0; k < 3; k++) {
-                        for (int l = 0; k < 3; k++) {
-                            if (neighboursBorders[k][l] == 1) {
+                        Map<Integer, Integer> neighbours = new HashMap<>();
 
-                                Integer id = neighboursIds[k][l];
+                        for (int k = 0; k < 3; k++) {
+                            for (int l = 0; l < 3; l++) {
+                                if (neighboursRec[k][l] == 1 && neighboursIds[k][l]!=0) {
 
-                                if (neighbours.containsKey(id)) {
-                                    Integer value = neighbours.get(id);
-                                    value++;
-                                    neighbours.remove(id);
-                                    neighbours.put(id, value);
-                                } else
-                                    neighbours.put(id, 1);
+                                    Integer id = neighboursIds[k][l];
+
+                                    if (neighbours.containsKey(id)) {
+                                        Integer value = neighbours.get(id);
+                                        value++;
+                                        neighbours.remove(id);
+                                        neighbours.put(id, value);
+                                    } else
+                                        neighbours.put(id, 1);
+                                }
                             }
                         }
-                    }
 
-                    Integer max = 0;
-                    Integer id = 0;
-                    for (Integer k : neighbours.keySet()) {
-                        if (neighbours.get(k) > max)
-                            id = k;
+                        Integer max = 0;
+                        Integer id = 0;
+                        for (Integer k : neighbours.keySet()) {
+                            if (neighbours.get(k) > max)
+                                id = k;
+                        }
+                        if(id!=0) {
+                            nextStep[i][j] = id;
+                            nextStepRec[i][j] = 1;
+                            roTab[i][j]=0;
+                        }
                     }
-                    nextStep[i][j] = id;
-                    recTab[i][j]=1;
                 }
             }
         }
-
+        tab=nextStep;
+        recTab=nextStepRec;
     }
 
     public boolean isOnBorder(int i, int j){
@@ -709,87 +735,87 @@ public class Mesh {
         return ro/(400*400);
     }
 
-    private int[][] generateTempBorderTab(int i, int j)
+    private int[][] generateTempRecTab(int i, int j)
     {
         int[][] temp = new int[3][3];
 
         if (period) {
             if (i == 0 && j == 0) {
-                temp[0][0] = bordersTab[x - 1][y - 1];
-                temp[0][1] = bordersTab[x - 1][0];
-                temp[0][2] = bordersTab[x - 1][1];
-                temp[1][0] = bordersTab[0][y - 1];
-                temp[1][2] = bordersTab[0][1];
-                temp[2][0] = bordersTab[1][y - 1];
-                temp[2][1] = bordersTab[1][0];
-                temp[2][2] = bordersTab[1][1];
+                temp[0][0] = recTab[x - 1][y - 1];
+                temp[0][1] = recTab[x - 1][0];
+                temp[0][2] = recTab[x - 1][1];
+                temp[1][0] = recTab[0][y - 1];
+                temp[1][2] = recTab[0][1];
+                temp[2][0] = recTab[1][y - 1];
+                temp[2][1] = recTab[1][0];
+                temp[2][2] = recTab[1][1];
             } else if (i == 0 && j != 0 && j != (y - 1)) {
-                temp[0][0] = bordersTab[x - 1][j - 1];
-                temp[0][1] = bordersTab[x - 1][j];
-                temp[0][2] = bordersTab[x - 1][j + 1];
-                temp[1][0] = bordersTab[0][j - 1];
-                temp[1][2] = bordersTab[0][j];
-                temp[2][0] = bordersTab[1][j - 1];
-                temp[2][1] = bordersTab[1][j];
-                temp[2][2] = bordersTab[1][j + 1];
+                temp[0][0] = recTab[x - 1][j - 1];
+                temp[0][1] = recTab[x - 1][j];
+                temp[0][2] = recTab[x - 1][j + 1];
+                temp[1][0] = recTab[0][j - 1];
+                temp[1][2] = recTab[0][j];
+                temp[2][0] = recTab[1][j - 1];
+                temp[2][1] = recTab[1][j];
+                temp[2][2] = recTab[1][j + 1];
             } else if (i == 0 && j == (y - 1)) {
-                temp[0][0] = bordersTab[x - 1][j - 1];
-                temp[0][1] = bordersTab[x - 1][j];
-                temp[0][2] = bordersTab[x - 1][0];
-                temp[1][0] = bordersTab[0][j - 1];
-                temp[1][2] = bordersTab[0][0];
-                temp[2][0] = bordersTab[1][j - 1];
-                temp[2][1] = bordersTab[1][j];
-                temp[2][2] = bordersTab[1][0];
+                temp[0][0] = recTab[x - 1][j - 1];
+                temp[0][1] = recTab[x - 1][j];
+                temp[0][2] = recTab[x - 1][0];
+                temp[1][0] = recTab[0][j - 1];
+                temp[1][2] = recTab[0][0];
+                temp[2][0] = recTab[1][j - 1];
+                temp[2][1] = recTab[1][j];
+                temp[2][2] = recTab[1][0];
             } else if (i == (x - 1) && j == 0) {
-                temp[0][0] = bordersTab[i - 1][y - 1];
-                temp[0][1] = bordersTab[i - 1][j];
-                temp[0][2] = bordersTab[i - 1][j + 1];
-                temp[1][0] = bordersTab[i][y - 1];
-                temp[1][2] = bordersTab[i][j + 1];
-                temp[2][0] = bordersTab[0][y - 1];
-                temp[2][1] = bordersTab[0][j];
-                temp[2][2] = tab[0][j + 1];
+                temp[0][0] = recTab[i - 1][y - 1];
+                temp[0][1] = recTab[i - 1][j];
+                temp[0][2] = recTab[i - 1][j + 1];
+                temp[1][0] = recTab[i][y - 1];
+                temp[1][2] = recTab[i][j + 1];
+                temp[2][0] = recTab[0][y - 1];
+                temp[2][1] = recTab[0][j];
+                temp[2][2] = recTab[0][j + 1];
             } else if (i == (x - 1) && j != 0 && j != (y - 1)) {
-                temp[0][0] = bordersTab[i - 1][j - 1];
-                temp[0][1] = bordersTab[i - 1][j];
-                temp[0][2] = bordersTab[i - 1][j + 1];
-                temp[1][0] = bordersTab[i][j - 1];
-                temp[1][2] = bordersTab[i][j + 1];
-                temp[2][0] = bordersTab[0][j - 1];
-                temp[2][1] = bordersTab[0][j];
-                temp[2][2] = bordersTab[0][j + 1];
+                temp[0][0] = recTab[i - 1][j - 1];
+                temp[0][1] = recTab[i - 1][j];
+                temp[0][2] = recTab[i - 1][j + 1];
+                temp[1][0] = recTab[i][j - 1];
+                temp[1][2] = recTab[i][j + 1];
+                temp[2][0] = recTab[0][j - 1];
+                temp[2][1] = recTab[0][j];
+                temp[2][2] = recTab[0][j + 1];
             } else if (i != 0 && j == (y - 1) && i != (x - 1)) {
-                temp[0][0] = bordersTab[i - 1][j - 1];
-                temp[0][1] = bordersTab[i - 1][j];
-                temp[0][2] = bordersTab[i - 1][0];
-                temp[1][0] = bordersTab[i][j - 1];
-                temp[1][2] = bordersTab[i][0];
-                temp[2][0] = bordersTab[i + 1][j - 1];
-                temp[2][1] = bordersTab[i + 1][j];
-                temp[2][2] = bordersTab[i + 1][0];
+                temp[0][0] = recTab[i - 1][j - 1];
+                temp[0][1] = recTab[i - 1][j];
+                temp[0][2] = recTab[i - 1][0];
+                temp[1][0] = recTab[i][j - 1];
+                temp[1][2] = recTab[i][0];
+                temp[2][0] = recTab[i + 1][j - 1];
+                temp[2][1] = recTab[i + 1][j];
+                temp[2][2] = recTab[i + 1][0];
             } else if (i == (x - 1) && j == (y - 1)) {
-                temp[0][0] = bordersTab[i - 1][j - 1];
-                temp[0][1] = bordersTab[i - 1][j];
-                temp[0][2] = bordersTab[i - 1][0];
-                temp[1][0] = bordersTab[i][j - 1];
-                temp[1][2] = bordersTab[i][0];
-                temp[2][0] = bordersTab[0][j - 1];
-                temp[2][1] = bordersTab[0][j];
-                temp[2][2] = bordersTab[0][0];
+                temp[0][0] = recTab[i - 1][j - 1];
+                temp[0][1] = recTab[i - 1][j];
+                temp[0][2] = recTab[i - 1][0];
+                temp[1][0] = recTab[i][j - 1];
+                temp[1][2] = recTab[i][0];
+                temp[2][0] = recTab[0][j - 1];
+                temp[2][1] = recTab[0][j];
+                temp[2][2] = recTab[0][0];
             } else if (i != 0 && j == 0 && i != (x - 1)) {
-                temp[0][0] = bordersTab[i - 1][y - 1];
-                temp[0][1] = bordersTab[i - 1][0];
-                temp[0][2] = bordersTab[i - 1][1];
-                temp[1][0] = bordersTab[i][y - 1];
-                temp[1][2] = bordersTab[i][1];
-                temp[2][0] = bordersTab[i + 1][y - 1];
-                temp[2][1] = bordersTab[i + 1][0];
-                temp[2][2] = bordersTab[i + 1][1];
+                temp[0][0] = recTab[i - 1][y - 1];
+                temp[0][1] = recTab[i - 1][0];
+                temp[0][2] = recTab[i - 1][1];
+                temp[1][0] = recTab[i][y - 1];
+                temp[1][2] = recTab[i][1];
+                temp[2][0] = recTab[i + 1][y - 1];
+                temp[2][1] = recTab[i + 1][0];
+                temp[2][2] = recTab[i + 1][1];
             } else {
                 for (int k = -1; k < 2; k++) {
                     for (int l = -1; l < 2; l++) {
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                     }
                 }
             }
@@ -798,42 +824,42 @@ public class Mesh {
             if (i == 0 && j == 0) {
                 for (int k = 0; k < 2; k++) {
                     for (int l = 0; l < 2; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i == 0 && j != 0 && j != (y - 1)) {
                 for (int k = 0; k < 2; k++) {
                     for (int l = -1; l < 2; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i == 0 && j == (y - 1)) {
                 for (int k = 0; k < 2; k++) {
                     for (int l = -1; l < 1; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i == (x - 1) && j == 0) {
                 for (int k = -1; k < 1; k++) {
                     for (int l = 0; l < 2; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i == (x - 1) && j != 0 && j != (y - 1)) {
                 for (int k = -1; k < 1; k++) {
                     for (int l = -1; l < 2; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i != 0 && j == (y - 1) && i != (x - 1)) {
                 for (int k = -1; k < 2; k++) {
                     for (int l = -1; l < 1; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i == (x - 1) && j == (y - 1)) {
                 for (int k = -1; k < 1; k++) {
                     for (int l = -1; l < 1; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             } else if (i != 0 && j == 0 && i != (x - 1)) {
                 for (int k = -1; k < 2; k++) {
                     for (int l = 0; l < 2; l++) {
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                         temp[0][0]=0;
                         temp[1][0]=0;
                         temp[2][0]=0;
@@ -842,7 +868,7 @@ public class Mesh {
             } else {
                 for (int k = -1; k < 2; k++) {
                     for (int l = -1; l < 2; l++)
-                        temp[k + 1][l + 1] = bordersTab[i + k][j + l];
+                        temp[k + 1][l + 1] = recTab[i + k][j + l];
                 }
             }
         }
